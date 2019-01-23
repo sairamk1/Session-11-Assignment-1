@@ -1,0 +1,110 @@
+#It happens all the time: someone gives you data containing malformed strings, Python,lists and missing data. How do you tidy
+#it up so you can get on with the analysis?Take this monstrosity as the DataFrame to use in the following puzzles:
+import numpy as np
+import pandas as pd
+df = pd.DataFrame({'From_To': ['LoNDon_paris', 'MAdrid_miLAN', 'londON_StockhOlm',
+'Budapest_PaRis', 'Brussels_londOn'],
+'FlightNumber': [10045, np.nan, 10065, np.nan, 10085],
+'RecentDelays': [[23, 47], [], [24, 43, 87], [13], [67, 32]],
+'Airline': ['KLM(!)', '<Air France> (12)', '(British Airways. )',
+'12. Air France', '"Swiss Air"']})
+#1. Some values in the the FlightNumber column are missing. These numbers are meantto increase by 10 with each row so 10055 
+#and 10075 need to be put in place. Fill in these missing numbers and make the column an integer column (instead of a float
+#column).
+df['FlightNumber'] = df['FlightNumber'].interpolate().astype(int)
+print (df)
+#output 
+        From_To  FlightNumber  RecentDelays              Airline
+0      LoNDon_paris         10045      [23, 47]               KLM(!)
+1      MAdrid_miLAN         10055            []    <Air France> (12)
+2  londON_StockhOlm         10065  [24, 43, 87]  (British Airways. )
+3    Budapest_PaRis         10075          [13]       12. Air France
+4   Brussels_londOn         10085      [67, 32]          "Swiss Air"
+
+
+#2. The From_To column would be better as two separate columns! Split each string on the underscore delimiter _ to give a new 
+#temporary DataFrame with the correct values.Assign the correct column names to this temporary DataFrame.
+foo = lambda x: pd.Series([i for i in (x.split('_'))])
+rev = df['From_To'].apply(foo)
+rev.rename(columns={0:'From',1:'To'},inplace=True)
+rev = rev[['From','To']]
+print (rev)
+#output
+   From         To
+0    LoNDon      paris
+1    MAdrid      miLAN
+2    londON  StockhOlm
+3  Budapest      PaRis
+4  Brussels     londOn
+
+
+#3. Notice how the capitalisation of the city names is all mixed up in this temporary DataFrame. Standardise the strings so that
+#only the first letter is uppercase (e.g."londON" should become "London".)
+rev1 = rev.From.str.capitalize()
+rev2 = rev.To.str.capitalize()
+print(rev1)
+print(rev2)
+#output
+0     London
+1      Madrid
+2      London
+3    Budapest
+4    Brussels
+Name: From, dtype: object
+0        Paris
+1        Milan
+2    Stockholm
+3        Paris
+4       London
+Name: To, dtype: object
+
+
+#4. Delete the From_To column from df and attach the temporary DataFrame from the previous questions.
+df.drop(df.columns[[0]], axis=1, inplace=True)
+print(df)
+frames1 = [df,rev1,rev2]
+result1 = pd.concat(frames1)
+print(result1)
+#output
+ FlightNumber  RecentDelays              Airline
+0         10045      [23, 47]               KLM(!)
+1         10055            []    <Air France> (12)
+2         10065  [24, 43, 87]  (British Airways. )
+3         10075          [13]       12. Air France
+4         10085      [67, 32]          "Swiss Air"
+
+#concat
+ FlightNumber  RecentDelays              Airline          0
+0       10045.0      [23, 47]               KLM(!)        NaN
+1       10055.0            []    <Air France> (12)        NaN
+2       10065.0  [24, 43, 87]  (British Airways. )        NaN
+3       10075.0          [13]       12. Air France        NaN
+4       10085.0      [67, 32]          "Swiss Air"        NaN
+0           NaN           NaN                  NaN     London
+1           NaN           NaN                  NaN     Madrid
+2           NaN           NaN                  NaN     London
+3           NaN           NaN                  NaN   Budapest
+4           NaN           NaN                  NaN   Brussels
+0           NaN           NaN                  NaN      Paris
+1           NaN           NaN                  NaN      Milan
+2           NaN           NaN                  NaN  Stockholm
+3           NaN           NaN                  NaN      Paris
+4           NaN           NaN                  NaN     London
+
+#5. In the RecentDelays column, the values have been entered into the DataFrame as a list. We would like each first value in its
+#own column, each second value in its own column, and so on. If there isn't an Nth value, the value should be NaN.Expand the 
+#Series of lists into a DataFrame named delays, rename the columns delay_1,delay_2, etc. and replace the unwanted RecentDelays
+#column in df with delays.
+s = df.apply(lambda x: pd.Series(x['RecentDelays']),axis=1).stack().reset_index(level=1, drop=True)
+s.name = 'RecentDelays'
+s
+#output
+0    23.0
+0    47.0
+2    24.0
+2    43.0
+2    87.0
+3    13.0
+4    67.0
+4    32.0
+Name: RecentDelays, dtype: float64
